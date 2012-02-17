@@ -2,7 +2,7 @@
 <project>
 	<app title="RayCast" main="RayCast"
 		package="com.matttuttle.raycast" version="1.0.0" company="HaxePunk" />
-	<window width="320" height="240" fps="30"
+	<window width="320" height="200" fps="30"
 		orientation="portrait" resizable="true" />
 
 	<set name="BUILD_DIR" value="bin" />

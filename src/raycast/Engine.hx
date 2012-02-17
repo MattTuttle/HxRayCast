@@ -43,17 +43,17 @@ class Engine extends Sprite
 		switch (e.keyCode)
 		{
 			case Key.LEFT:
-				screen.camera.angle -= 1;
+				screen.camera.angle -= 3;
 			case Key.RIGHT:
-				screen.camera.angle += 1;
+				screen.camera.angle += 3;
 			case Key.W:
-				screen.camera.y -= 1;
+				screen.camera.y -= 8;
 			case Key.S:
-				screen.camera.y += 1;
+				screen.camera.y += 8;
 			case Key.A:
-				screen.camera.x -= 1;
+				screen.camera.x -= 8;
 			case Key.D:
-				screen.camera.x += 1;
+				screen.camera.x += 8;
 		}
 	}
 

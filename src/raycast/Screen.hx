@@ -196,7 +196,7 @@ class Screen extends Sprite
 		{
 			var fTan:Float = Math.tan(angle * RAD);
 
-			// check horizontal lines
+			// check horizontal intersections
 			if (angle < 180)
 			{
 				y1 = iy * gridHeight - 1; // facing down
@@ -223,7 +223,7 @@ class Screen extends Sprite
 			var d1:Float = Math.sqrt(dx * dx + dy * dy);
 
 
-			// check vertical lines
+			// check vertical intersections
 			if (angle > 90 && angle < 270)
 			{
 				x2 = ix * gridWidth - 1; // facing left
@@ -251,6 +251,7 @@ class Screen extends Sprite
 
 			// keep whichever distance is closest (blocking wall)
 			var dist:Float = (d1 < d2) ? d1 : d2;
+			trace(dist);
 
 			// Actually draw the wall
 			rect.x = x;
