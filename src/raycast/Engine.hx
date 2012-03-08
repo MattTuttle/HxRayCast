@@ -14,10 +14,21 @@ class Engine extends Sprite
 {
 
 	public var screen:Screen;
+	public inline static var RAD:Float = Math.PI / 180;
+
+	public inline static var turnSpeed:Float = 3;
+	public inline static var moveSpeed:Float = 0.18;
+
+	private var forward:Float;
+	private var strafe:Float;
+	private var turn:Float;
 
 	public function new()
 	{
 		super();
+
+		forward = strafe = turn = 0;
+
 		if (Lib.current.stage != null) onStage();
 		else Lib.current.addEventListener(Event.ADDED_TO_STAGE, onStage);
 	}
@@ -36,6 +47,7 @@ class Engine extends Sprite
 
 		addEventListener(Event.ENTER_FRAME, onEnterFrame);
 		stage.addEventListener(KeyboardEvent.KEY_DOWN, onKeyDown, false,  2);
+		stage.addEventListener(KeyboardEvent.KEY_UP, onKeyUp, false,  2);
 	}
 
 	private function onKeyDown(e:KeyboardEvent)
@@ -43,22 +55,64 @@ class Engine extends Sprite
 		switch (e.keyCode)
 		{
 			case Key.LEFT:
-				screen.camera.angle -= 3;
+				turn = -turnSpeed;
 			case Key.RIGHT:
-				screen.camera.angle += 3;
+				turn = turnSpeed;
 			case Key.W:
-				screen.camera.y -= 8;
+				forward = moveSpeed;
 			case Key.S:
-				screen.camera.y += 8;
+				forward = -moveSpeed;
 			case Key.A:
-				screen.camera.x -= 8;
+				strafe = -moveSpeed;
 			case Key.D:
-				screen.camera.x += 8;
+				strafe = moveSpeed;
+		}
+	}
+
+	private function onKeyUp(e:KeyboardEvent)
+	{
+		switch (e.keyCode)
+		{
+			case Key.LEFT:
+				turn = 0;
+			case Key.RIGHT:
+				turn = 0;
+			case Key.W:
+				forward = 0;
+			case Key.S:
+				forward = 0;
+			case Key.A:
+				strafe = 0;
+			case Key.D:
+				strafe = 0;
+		}
+	}
+
+	private inline function checkMove(x:Float, y:Float)
+	{
+		if ( ! screen.isBlocking(screen.camera.x + x, screen.camera.y + y, 0.25, 0.25) )
+		{
+			screen.camera.x += x;
+			screen.camera.y += y;
 		}
 	}
 
 	private function onEnterFrame(e:Event)
 	{
+		var x:Float, y:Float, angle:Float;
+
+		screen.camera.angle += turn;
+		angle = screen.camera.angle;
+
+		x = Math.cos(angle * RAD) * forward;
+		y = Math.sin(angle * RAD) * forward;
+		checkMove(x, y);
+
+		angle += 90;
+		x = Math.cos(angle * RAD) * strafe;
+		y = Math.sin(angle * RAD) * strafe;
+		checkMove(x, y);
+
 		if (screen == null) return;
 		screen.start();
 		screen.draw();

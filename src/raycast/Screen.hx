@@ -20,6 +20,8 @@ class Screen extends Sprite
 	public var gridWidth:Int;
 	public var gridHeight:Int;
 
+	public var stripWidth:Int;
+
 	public var level:BitmapData;
 
 	public function new(width:Int, height:Int, bd:BitmapData)
@@ -28,7 +30,10 @@ class Screen extends Sprite
 
 		gridWidth = 32;
 		gridHeight = 32;
-		camera = new Camera(2 * gridWidth, 2 * gridHeight);
+
+		stripWidth = 1;
+
+		camera = new Camera(30, 30);
 		level = bd;
 
 		_current = 0;
@@ -45,6 +50,27 @@ class Screen extends Sprite
 		addChild(_buffers[0]).visible = true;
 		addChild(_buffers[1]).visible = false;
 		buffer = _buffers[0].bitmapData;
+	}
+
+	public function isBlocking(x:Float, y:Float, w:Float, h:Float)
+	{
+		if (y < 0 || y >= level.height || x < 0 || x >= level.width) {
+			return true;
+		}
+
+//		trace(x + ", " + y);
+
+		var l:Int = Math.floor(x - w);
+		var r:Int = Math.floor(x + w);
+		var u:Int = Math.floor(y - h);
+		var d:Int = Math.floor(y - h);
+
+//		trace(l + ", " + r + ", " + u + ", " + d);
+
+		return (level.getPixel(l, u) == 0x000000 ||
+			level.getPixel(r, u) == 0x000000 ||
+			level.getPixel(l, d) == 0x000000 ||
+			level.getPixel(r, d) == 0x000000);
 	}
 
 	public function start()
@@ -158,168 +184,132 @@ class Screen extends Sprite
 			}
 		}
 
-		var playerX:Int = Std.int(camera.x / gridWidth);
-		var playerY:Int = Std.int(camera.y / gridHeight);
-
 		// draw view point
 		var thetaX:Float = Math.cos(camera.angle * RAD);
 		var thetaY:Float = Math.sin(camera.angle * RAD);
 		for (i in 0...10)
 		{
-			var x:Int = playerX + Std.int(i * thetaX);
-			var y:Int = playerY + Std.int(i * thetaY);
+			var x:Int = Std.int(camera.x + i * thetaX);
+			var y:Int = Std.int(camera.y + i * thetaY);
 			if (level.getPixel(x, y) == 0x000000)
 				break;
-			buffer.setPixel(x + mx, y + mx, 0xFF8888);
+			buffer.setPixel(x + mx, y + my, 0xFF8888);
 		}
 
-		buffer.setPixel(playerX + mx, playerY + mx, 0x00FF00);
+		buffer.setPixel(Std.int(camera.x + mx), Std.int(camera.y + my), 0x00FF00);
+	}
+
+	private inline function distance(x1:Float, y1:Float, x2:Float, y2:Float):Float
+	{
+		var dx:Float = x1 - x2;
+		var dy:Float = y1 - y2;
+		return dx * dx + dy * dy;
+	}
+
+	public function doRayCast(angle:Float, index:Int)
+	{
+		var dist:Float = 0, distX:Float, distY:Float;
+		var wallX:Int, wallY:Int, color:Int = 0xFFFFFFFF;
+		var x:Float, y:Float, dx:Float, dy:Float, slope:Float;
+
+		var fCos:Float = Math.cos(angle * RAD);
+		var fSin:Float = Math.sin(angle * RAD);
+
+		var left:Bool = (angle > 90 && angle < 270);
+		var up:Bool = (angle > 180 && angle < 360);
+
+
+		// horizontal
+		slope = fSin / fCos;
+
+		x = left ? Math.floor(camera.x) : Math.ceil(camera.x);
+		y = camera.y + (x - camera.x) * slope;
+
+		dx = left ? -1 : 1;
+		dy = dx * slope;
+
+		while (x >= 0 && x < level.width && y >= 0 && y < level.height)
+		{
+			wallX = Math.floor(x + (left ? -1 : 0));
+			wallY = Math.floor(y);
+			var tile:Int = level.getPixel(wallX, wallY);
+			if (tile == 0x000000)
+			{
+				if (left)
+					color = 0xFFBBBBBB;
+				else
+					color = 0xFFCCCCCC;
+				dist = distance(x, y, camera.x, camera.y);
+//				trace("(" + x + ", " +  y + ") (" + camera.x + ", " + camera.y + "): " + dist);
+				break;
+			}
+			x += dx;
+			y += dy;
+		}
+
+
+		// vertical
+		slope = fCos / fSin;
+
+		y = up ? Math.floor(camera.y) : Math.ceil(camera.y);
+		x = camera.x + (y - camera.y) * slope;
+
+		dy = up ? -1 : 1;
+		dx = dy * slope;
+
+		while (x >= 0 && x < level.width && y >= 0 && y < level.height)
+		{
+			wallX = Math.floor(x);
+			wallY = Math.floor(y + (up ? -1 : 0));
+			var tile:Int = level.getPixel(wallX, wallY);
+			if (tile == 0x000000)
+			{
+				var newDist = distance(x, y, camera.x, camera.y);
+				if (dist == 0 || dist > newDist)
+				{
+					if (up)
+						color = 0xFFAAAAAA;
+					else
+						color = 0xFFFFFFFF;
+					dist = newDist;
+				}
+				break;
+			}
+			x += dx;
+			y += dy;
+		}
+
+		if (dist != 0)
+		{
+			var viewDist = (_bufferWidth / 2) / Math.tan(camera.fov * RAD / 2);
+			dist = Math.sqrt(dist) * Math.cos(camera.angle * RAD - angle * RAD);
+			var height:Float = viewDist / dist;
+			var rect = new Rectangle(index * stripWidth, _bufferHeight / 2 - height / 2, stripWidth, height);
+			buffer.fillRect(rect, color);
+		}
+	}
+
+	public function drawRays()
+	{
+		var numRays:Int = Math.floor(_bufferWidth / stripWidth);
+		var angle:Float = camera.angle - camera.fov / 2;
+		var deltaAngle:Float = camera.fov / numRays;
+
+		if (angle < 0)
+			angle += 360;
+
+		for (i in 0...numRays)
+		{
+			doRayCast(angle, i);
+			angle += deltaAngle;
+			if (angle > 360)
+				angle %= 360;
+		}
 	}
 
 	public function draw()
 	{
-		var hfov:Float = camera.fov / 2;
-		var distToProj:Float = (_bufferWidth / 2) / Math.tan(hfov * RAD);
-		var angle:Float = (camera.angle - hfov) % 360; // starting angle
-		var increment:Float = camera.fov / _bufferWidth; // angle increment
-
-		var destX:Float = 0, incX:Float, dx:Float;
-		var destY:Float = 0, incY:Float, dy:Float;
-		var wall:Int, distHoriz:Float = 999999999, distVert:Float = 999999999;
-		var rect:Rectangle = new Rectangle(0, 0, 1, _bufferHeight);
-
-		// wrap angle if necessary
-		if (angle < 0) angle += 360;
-
-		// loop each vertical column
-		for (x in 0..._bufferWidth)
-		{
-
-			var fTan:Float = Math.tan(angle * RAD);
-
-			destY = Math.floor(camera.y / gridHeight) * gridHeight;
-			// check horizontal intersections
-			if (angle > 0 && angle < 180)
-			{
-				// facing down
-				destY += gridHeight;
-				incY = gridHeight;
-
-				destX = fTan * (destY - camera.y) + camera.x;
-				incX = gridWidth / fTan;
-			}
-			else
-			{
-				// facing up
-				incY = -gridHeight;
-
-				destX = fTan * (destY - camera.y) + camera.x;
-				incX = gridWidth / fTan;
-
-				destY -= 1;
-			}
-
-			if (angle == 0 || angle == 180)
-			{
-				distHoriz = 999999999;
-			}
-			else
-			{
-				while (true)
-				{
-					var ix:Int = Math.floor(destX / gridWidth);
-					var iy:Int = Math.floor(destY / gridHeight);
-
-					if (ix >= level.width ||
-						iy >= level.height ||
-						ix < 0 || iy < 0)
-					{
-						distHoriz = 999999999;
-						break;
-					}
-
-					wall = level.getPixel(ix, iy);
-					if (wall == 0x000000)
-					{
-						distHoriz = (destX - camera.x) * Math.cos(angle * RAD);
-						break;
-					}
-
-					destX += incX;
-					destY += incY;
-				}
-			}
-
-
-			// check vertical intersections
-			destX = Math.floor(camera.x / gridWidth) * gridWidth;
-			if (angle < 90 && angle > 270)
-			{
-				// facing left
-				destX += gridWidth;
-				incX = gridWidth;
-
-				destY = fTan * (destX - camera.x) + camera.y;
-				incY = gridHeight * fTan;
-			}
-			else
-			{
-				// facing right
-				incX = -gridWidth;
-
-				destY = fTan * (destX - camera.x) + camera.y;
-				incY = gridHeight * fTan;
-
-				destX -= 1;
-			}
-
-			if (angle == 90 || angle == 270)
-			{
-				distVert = 999999999;
-			}
-			else
-			{
-				while (true)
-				{
-					var ix:Int = Math.floor(destX / gridWidth);
-					var iy:Int = Math.floor(destY / gridHeight);
-
-					if (ix >= level.width ||
-						iy >= level.height ||
-						ix < 0 || iy < 0)
-					{
-						distHoriz = 999999999;
-						break;
-					}
-
-					wall = level.getPixel(ix, iy);
-					if (wall == 0x000000)
-					{
-						distVert = (destY - camera.y) * Math.sin(angle * RAD);
-						break;
-					}
-					
-					destX += incX;
-					destY += incY;
-				}
-			}
-
-
-			// keep whichever distance is closest (blocking wall)
-			var dist:Float = (distHoriz < distVert) ? distHoriz : distVert;
-			trace(dist);
-
-			// Actually draw the wall
-			rect.x = x;
-			rect.height = gridHeight * distToProj / dist;
-			rect.y = camera.z + (_bufferHeight - rect.height) / 2; // center on z-axis
-			buffer.fillRect(rect, 0xFFFFFF);
-
-			angle += increment;
-			if (angle >= 360)
-				angle -= 360;
-		}
-
+		drawRays();
 		drawMiniMap();
 	}
 
