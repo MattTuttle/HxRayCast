@@ -4,6 +4,7 @@ import flash.display.Bitmap;
 import flash.display.BitmapData;
 import flash.display.PixelSnapping;
 import flash.display.Sprite;
+import flash.display.BlendMode;
 import flash.geom.Matrix;
 import flash.geom.Rectangle;
 
@@ -15,6 +16,7 @@ class Screen extends Sprite
 	public static inline var RAD:Float = Math.PI / 180;
 
 	public var buffer:BitmapData;
+	public var wallImage:Bitmap;
 	public var camera:Camera;
 
 	public var gridWidth:Int;
@@ -24,6 +26,10 @@ class Screen extends Sprite
 
 	public var level:BitmapData;
 
+	private var clipRect:Rectangle;
+	private var matrix:Matrix;
+	private var viewDist:Float;
+
 	public function new(width:Int, height:Int, bd:BitmapData)
 	{
 		super();
@@ -31,7 +37,11 @@ class Screen extends Sprite
 		gridWidth = 32;
 		gridHeight = 32;
 
-		stripWidth = 1;
+		wallImage = new Bitmap(nme.Assets.getBitmapData("assets/brick.png"));
+		clipRect = new Rectangle();
+		matrix = new Matrix();
+
+		stripWidth = 2;
 
 		camera = new Camera(30, 30);
 		level = bd;
@@ -206,9 +216,9 @@ class Screen extends Sprite
 		return dx * dx + dy * dy;
 	}
 
-	public function doRayCast(angle:Float, index:Int)
+	public function doRayCast(angle:Float)
 	{
-		var dist:Float = 0, distX:Float, distY:Float;
+		var dist:Float = 0, textureX:Float = 0;
 		var wallX:Int, wallY:Int, color:Int = 0xFFFFFFFF;
 		var x:Float, y:Float, dx:Float, dy:Float, slope:Float;
 
@@ -235,6 +245,10 @@ class Screen extends Sprite
 			var tile:Int = level.getPixel(wallX, wallY);
 			if (tile == 0x000000)
 			{
+				textureX = y % 1;
+				if ( left ) {
+					textureX = 1 - textureX;
+				}
 				if (left)
 					color = 0xFFBBBBBB;
 				else
@@ -267,6 +281,10 @@ class Screen extends Sprite
 				var newDist = distance(x, y, camera.x, camera.y);
 				if (dist == 0 || dist > newDist)
 				{
+					textureX = x % 1;
+					if (up) {
+						textureX = 1 - textureX;
+					}
 					if (up)
 						color = 0xFFAAAAAA;
 					else
@@ -281,11 +299,19 @@ class Screen extends Sprite
 
 		if (dist != 0)
 		{
-			var viewDist = (_bufferWidth / 2) / Math.tan(camera.fov * RAD / 2);
-			dist = Math.sqrt(dist) * Math.cos(camera.angle * RAD - angle * RAD);
-			var height:Float = viewDist / dist;
-			var rect = new Rectangle(index * stripWidth, _bufferHeight / 2 - height / 2, stripWidth, height);
-			buffer.fillRect(rect, color);
+			dist = Math.sqrt(dist) * Math.cos((camera.angle - angle) * RAD);
+
+			var d:Float = viewDist / dist;
+
+			clipRect.y = (_bufferHeight - d) / 2;
+			clipRect.height = d;
+
+			//buffer.fillRect(clipRect, color);
+
+			matrix.identity();
+			matrix.scale(d / wallImage.width, d / wallImage.height);
+			matrix.translate(clipRect.x - textureX * d, clipRect.y);
+			buffer.draw(wallImage, matrix, null, BlendMode.NORMAL, clipRect);
 		}
 	}
 
@@ -298,9 +324,12 @@ class Screen extends Sprite
 		if (angle < 0)
 			angle += 360;
 
+		viewDist = (_bufferWidth / 2) / Math.tan(camera.fov * RAD / 2);
+		clipRect.width = stripWidth;
 		for (i in 0...numRays)
 		{
-			doRayCast(angle, i);
+			clipRect.x = i * stripWidth;
+			doRayCast(angle);
 			angle += deltaAngle;
 			if (angle > 360)
 				angle %= 360;
