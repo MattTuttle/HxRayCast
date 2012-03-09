@@ -15,59 +15,45 @@ class Screen extends Sprite
 	public static inline var DEG:Float = 180 / Math.PI;
 	public static inline var RAD:Float = Math.PI / 180;
 
-	public var buffer:BitmapData;
 	public var wallImage:Bitmap;
 	public var camera:Camera;
-
-	public var gridWidth:Int;
-	public var gridHeight:Int;
+	public var entities:Array<Entity>;
 
 	public var stripWidth:Int;
 
-	private var clipRect:Rectangle;
-	private var matrix:Matrix;
-	private var viewDist:Float;
-
 	private static var mapData:Array<Array<Int>> = [
 		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-		[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 2, 1, 1, 2, 3, 1],
-		[1, 0, 0, 0, 3, 1, 0, 0, 0, 1],
-		[1, 0, 0, 0, 4, 1, 0, 0, 0, 1],
-		[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+		[3, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+		[3, 0, 0, 0, 1, 1, 2, 2, 2, 1],
+		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+		[3, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
 		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 	];
 
-	private static var mapWidth:Int = 10;
-	private static var mapHeight:Int = 10;
+	private static var mapWidth:Int = mapData[0].length;
+	private static var mapHeight:Int = mapData.length;
 
 	public function new(width:Int, height:Int)
 	{
 		super();
-
-		gridWidth = 32;
-		gridHeight = 32;
 
 		wallImage = new Bitmap(nme.Assets.getBitmapData("assets/walls.png"));
 
 		clipRect = new Rectangle();
 		matrix = new Matrix();
 
-		stripWidth = 2;
+		stripWidth = 3;
 
-		camera = new Camera(3, 3);
-
-		_current = 0;
-		_color = 0x202020;
+		camera = new Camera(3, 3); // set initial start position
+		entities = new Array<Entity>();
 
 		_bufferWidth = width;
 		_bufferHeight = height;
-
-		buffer = new BitmapData(width, height, false, 0);
-		addChild(new Bitmap(buffer, PixelSnapping.NEVER));
+		_buffer = new BitmapData(_bufferWidth, _bufferHeight, false, 0);
+		addChild(new Bitmap(_buffer, PixelSnapping.NEVER));
 	}
 
 	public function isBlocking(x:Float, y:Float, w:Float, h:Float)
@@ -98,11 +84,11 @@ class Screen extends Sprite
 				rect.y = y * rect.height + my;
 				if (wall != 0)
 				{
-					buffer.fillRect(rect, 0x555555);
+					_buffer.fillRect(rect, 0x555555);
 				}
 				else
 				{
-					buffer.fillRect(rect, 0x888888);
+					_buffer.fillRect(rect, 0x888888);
 				}
 			}
 		}
@@ -125,7 +111,7 @@ class Screen extends Sprite
 
 		rect.x = camera.x * rect.width + mx;
 		rect.y = camera.y * rect.height + my;
-		buffer.fillRect(rect, 0x00FF00);
+		_buffer.fillRect(rect, 0x00FF00);
 	}
 
 	private inline function distance(x1:Float, y1:Float, x2:Float, y2:Float):Float
@@ -223,30 +209,30 @@ class Screen extends Sprite
 			y += dy;
 		}
 
-		if (dist > 0)
+		if (dist >= 0)
 		{
 			var numTextures:Int = 4;
 			var tileHeight:Int = 64;
 
 			// fix fisheye
 			dist = Math.sqrt(dist) * Math.cos((camera.angle - angle) * RAD);
-			dist = Math.round(viewDist / dist);
+			dist = viewDist / dist;
 
-			clipRect.y = (_bufferHeight - dist) / 2;
+			clipRect.y = (_bufferHeight + camera.z - dist) / 2;
 			clipRect.height = dist;
 
-			// hack way of patching up holes
-			var texX = textureX * dist;
+			// prevent gaps in the wall
+			var texX:Float = textureX * dist;
 			if (texX > dist - stripWidth)
 				texX = dist - stripWidth;
 
 //			buffer.fillRect(clipRect, color); // colored wall
-			var sy = dist / wallImage.height * numTextures;
+			var sy:Float = dist / wallImage.height * numTextures;
 
 			matrix.identity();
 			matrix.scale(dist / wallImage.width, sy);
 			matrix.translate(clipRect.x - texX, clipRect.y - sy * (wallType - 1) * tileHeight);
-			buffer.draw(wallImage, matrix, null, BlendMode.NORMAL, clipRect);
+			_buffer.draw(wallImage, matrix, null, BlendMode.NORMAL, clipRect);
 		}
 	}
 
@@ -272,7 +258,7 @@ class Screen extends Sprite
 
 			// keep angle in 0-360 range
 			angle += deltaAngle;
-			if (angle > 360)
+			if (angle >= 360)
 			{
 				angle %= 360;
 			}
@@ -281,19 +267,26 @@ class Screen extends Sprite
 
 	public function draw()
 	{
-		// clear buffer
-		buffer.fillRect(buffer.rect, color);
+		// clear background
+		var rect:Rectangle = _buffer.rect;
+		// ceiling
+		rect.height = (rect.height + camera.z) / 2;
+		_buffer.fillRect(rect, 0x555353);
+		// floor
+		rect.y += rect.height;
+		rect.height = _bufferHeight - rect.y;
+		_buffer.fillRect(rect, 0x333030);
+
 		drawRays();
 		drawMiniMap();
 	}
 
-	public var color(getColor, setColor):Int;
-	private function getColor():Int { return _color; }
-	private function setColor(value:Int):Int { _color = 0xFF000000 | value; return _color; }
+	private var clipRect:Rectangle;
+	private var matrix:Matrix;
+	private var viewDist:Float;
 
 	private var _bufferWidth:Int;
 	private var _bufferHeight:Int;
-	private var _current:Int;
-	private var _color:Int;
+	private var _buffer:BitmapData;
 
 }

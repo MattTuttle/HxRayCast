@@ -17,17 +17,22 @@ class Engine extends Sprite
 	public inline static var RAD:Float = Math.PI / 180;
 
 	public inline static var turnSpeed:Float = 3;
+	public inline static var tiltSpeed:Float = 12;
 	public inline static var moveSpeed:Float = 0.18;
 
 	private var forward:Float;
 	private var strafe:Float;
 	private var turn:Float;
+	private var tilt:Float;
 
-	public function new()
+	public function new(width:Int, height:Int)
 	{
 		super();
 
-		forward = strafe = turn = 0;
+		screen = new Screen(width, height);
+		addChild(screen);
+
+		forward = strafe = turn = tilt = 0;
 
 		if (Lib.current.stage != null) onStage();
 		else Lib.current.addEventListener(Event.ADDED_TO_STAGE, onStage);
@@ -64,14 +69,14 @@ class Engine extends Sprite
 				forward = moveSpeed;
 			case Key.S:
 				forward = -moveSpeed;
-			case Key.UP:
-				forward = moveSpeed;
-			case Key.DOWN:
-				forward = -moveSpeed;
 			case Key.A:
 				strafe = -moveSpeed;
 			case Key.D:
 				strafe = moveSpeed;
+			case Key.UP:
+				tilt = tiltSpeed;
+			case Key.DOWN:
+				tilt = -tiltSpeed;
 		}
 	}
 
@@ -85,12 +90,12 @@ class Engine extends Sprite
 				turn = 0;
 			case Key.W:
 				forward = 0;
-			case Key.UP:
-				forward = 0;
-			case Key.DOWN:
-				forward = 0;
 			case Key.S:
 				forward = 0;
+			case Key.UP:
+				tilt = 0;
+			case Key.DOWN:
+				tilt = 0;
 			case Key.A:
 				strafe = 0;
 			case Key.D:
@@ -117,6 +122,8 @@ class Engine extends Sprite
 
 		screen.camera.angle += turn;
 		angle = screen.camera.angle * RAD;
+
+		screen.camera.z += tilt;
 
 		x = Math.cos(angle) * forward;
 		y = Math.sin(angle) * forward;

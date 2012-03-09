@@ -13,7 +13,7 @@ class Camera
 	public var z:Float;
 	public var fov:Float;
 
-	public function new(x:Float, y:Float, z:Float = 0, angle:Float = 0, fov:Float = 60)
+	public function new(x:Float, y:Float, z:Float = 0, angle:Float = 0, fov:Float = 75)
 	{
 		this.x = x;
 		this.y = y;
