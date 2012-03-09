@@ -76,14 +76,10 @@ class Screen extends Sprite
 			return true;
 		}
 
-//		trace(x + ", " + y);
-
 		var l:Int = Math.floor(x - w);
 		var r:Int = Math.floor(x + w);
 		var u:Int = Math.floor(y - h);
 		var d:Int = Math.floor(y + h);
-
-//		trace(l + ", " + r + ", " + u + ", " + d);
 
 		return (mapData[u][l] != 0 || mapData[u][r] != 0 ||
 			mapData[d][l] != 0 || mapData[d][r] != 0);
@@ -91,32 +87,45 @@ class Screen extends Sprite
 
 	public inline function drawMiniMap()
 	{
-		var mx:Int = 6, my: Int = 6;
+		var mx:Int = 20, my: Int = 20;
+		var rect = new Rectangle(0, 0, 3, 3);
 		for (y in 0...mapHeight)
 		{
 			for (x in 0...mapWidth)
 			{
 				var wall:Int = mapData[y][x];
+				rect.x = x * rect.width + mx;
+				rect.y = y * rect.height + my;
 				if (wall != 0)
 				{
-					buffer.setPixel(x + mx, y + my, 0x555555);
+					buffer.fillRect(rect, 0x555555);
+				}
+				else
+				{
+					buffer.fillRect(rect, 0x888888);
 				}
 			}
 		}
 
 		// draw view point
+		/*
 		var thetaX:Float = Math.cos(camera.angle * RAD);
 		var thetaY:Float = Math.sin(camera.angle * RAD);
 		for (i in 0...10)
 		{
-			var x:Int = Std.int(camera.x + i * thetaX);
-			var y:Int = Std.int(camera.y + i * thetaY);
+			var x:Int = Std.int(camera.x + (i * thetaX) + 1);
+			var y:Int = Std.int(camera.y + (i * thetaY) + 1);
 			if (mapData[y][x] != 0)
 				break;
-			buffer.setPixel(x + mx, y + my, 0xFF8888);
+			rect.x = x * rect.width + mx;
+			rect.y = y * rect.height + my;
+			buffer.fillRect(rect, 0xFF8888);
 		}
+		*/
 
-		buffer.setPixel(Std.int(camera.x + mx), Std.int(camera.y + my), 0x00FF00);
+		rect.x = camera.x * rect.width + mx;
+		rect.y = camera.y * rect.height + my;
+		buffer.fillRect(rect, 0x00FF00);
 	}
 
 	private inline function distance(x1:Float, y1:Float, x2:Float, y2:Float):Float
@@ -169,7 +178,6 @@ class Screen extends Sprite
 
 				wallType = tile;
 				dist = distance(x, y, camera.x, camera.y);
-//				trace("(" + x + ", " +  y + ") (" + camera.x + ", " + camera.y + "): " + dist);
 				break;
 			}
 			x += dx;
@@ -194,7 +202,7 @@ class Screen extends Sprite
 			if (tile != 0)
 			{
 				var newDist = distance(x, y, camera.x, camera.y);
-				if (dist == 0 || dist > newDist)
+				if (dist <= 0 || dist > newDist)
 				{
 					textureX = x % 1;
 					if ( up )
@@ -215,7 +223,7 @@ class Screen extends Sprite
 			y += dy;
 		}
 
-		if (dist != 0)
+		if (dist > 0)
 		{
 			// fix fisheye
 			dist = Math.sqrt(dist) * Math.cos((camera.angle - angle) * RAD);
