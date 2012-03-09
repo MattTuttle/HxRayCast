@@ -36,7 +36,9 @@ class Engine extends Sprite
 	private function onStage(?e:Event)
 	{
 		if (e != null)
+		{
 			Lib.current.removeEventListener(Event.ADDED_TO_STAGE, onStage);
+		}
 
 		var stage = Lib.current.stage;
 		stage.align = StageAlign.TOP_LEFT;
@@ -62,6 +64,10 @@ class Engine extends Sprite
 				forward = moveSpeed;
 			case Key.S:
 				forward = -moveSpeed;
+			case Key.UP:
+				forward = moveSpeed;
+			case Key.DOWN:
+				forward = -moveSpeed;
 			case Key.A:
 				strafe = -moveSpeed;
 			case Key.D:
@@ -78,6 +84,10 @@ class Engine extends Sprite
 			case Key.RIGHT:
 				turn = 0;
 			case Key.W:
+				forward = 0;
+			case Key.UP:
+				forward = 0;
+			case Key.DOWN:
 				forward = 0;
 			case Key.S:
 				forward = 0;
@@ -97,7 +107,7 @@ class Engine extends Sprite
 		}
 	}
 
-	private function onEnterFrame(e:Event)
+	private inline function move()
 	{
 		var x:Float, y:Float, angle:Float;
 
@@ -112,11 +122,16 @@ class Engine extends Sprite
 		x = Math.cos(angle * RAD) * strafe;
 		y = Math.sin(angle * RAD) * strafe;
 		checkMove(x, y);
+	}
 
-		if (screen == null) return;
-		screen.start();
-		screen.draw();
-		screen.end();
+	private function onEnterFrame(e:Event)
+	{
+		move();
+
+		if (screen != null)
+		{
+			screen.draw();
+		}
 	}
 
 }

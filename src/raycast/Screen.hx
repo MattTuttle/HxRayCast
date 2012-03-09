@@ -38,6 +38,7 @@ class Screen extends Sprite
 		gridHeight = 32;
 
 		wallImage = new Bitmap(nme.Assets.getBitmapData("assets/brick.png"));
+
 		clipRect = new Rectangle();
 		matrix = new Matrix();
 
@@ -48,18 +49,12 @@ class Screen extends Sprite
 
 		_current = 0;
 		_color = 0x202020;
-		_bounds = new Rectangle(0, 0, width, height);
-
-		_buffers = new Array<Bitmap>();
-		_buffers[0] = new Bitmap(new BitmapData(width, height, false, 0), PixelSnapping.NEVER);
-		_buffers[1] = new Bitmap(new BitmapData(width, height, false, 0), PixelSnapping.NEVER);
 
 		_bufferWidth = width;
 		_bufferHeight = height;
 
-		addChild(_buffers[0]).visible = true;
-		addChild(_buffers[1]).visible = false;
-		buffer = _buffers[0].bitmapData;
+		buffer = new BitmapData(width, height, false, 0);
+		addChild(new Bitmap(buffer, PixelSnapping.NEVER));
 	}
 
 	public function isBlocking(x:Float, y:Float, w:Float, h:Float)
@@ -83,103 +78,7 @@ class Screen extends Sprite
 			level.getPixel(r, d) == 0x000000);
 	}
 
-	public function start()
-	{
-		_current = 1 - _current;
-		buffer = _buffers[_current].bitmapData;
-		buffer.fillRect(_bounds, color);
-	}
-
-	public function end()
-	{
-		_buffers[_current].visible = true;
-		_buffers[1 - _current].visible = false;
-	}
-
-	public function line(x1:Int, y1:Int, x2:Int, y2:Int, color:Int = 0xFFFFFF)
-	{
-		if (color < 0xFF000000) color = 0xFF000000 | color;
-
-		// get the drawing difference
-		var X:Float = Math.abs(x2 - x1),
-			Y:Float = Math.abs(y2 - y1),
-			xx:Int,
-			yy:Int;
-
-		// draw a single pixel
-		if (X == 0)
-		{
-			if (Y == 0)
-			{
-				buffer.setPixel32(x1, y1, color);
-				return;
-			}
-			// draw a straight vertical line
-			yy = y2 > y1 ? 1 : -1;
-			while (y1 != y2)
-			{
-				buffer.setPixel32(x1, y1, color);
-				y1 += yy;
-			}
-			buffer.setPixel32(x2, y2, color);
-			return;
-		}
-
-		if (Y == 0)
-		{
-			// draw a straight horizontal line
-			xx = x2 > x1 ? 1 : -1;
-			while (x1 != x2)
-			{
-				buffer.setPixel32(x1, y1, color);
-				x1 += xx;
-			}
-			buffer.setPixel32(x2, y2, color);
-			return;
-		}
-
-		xx = x2 > x1 ? 1 : -1;
-		yy = y2 > y1 ? 1 : -1;
-		var c:Float = 0,
-			slope:Float;
-
-		if (X > Y)
-		{
-			slope = Y / X;
-			c = .5;
-			while (x1 != x2)
-			{
-				buffer.setPixel32(x1, y1, color);
-				x1 += xx;
-				c += slope;
-				if (c >= 1)
-				{
-					y1 += yy;
-					c -= 1;
-				}
-			}
-			buffer.setPixel32(x2, y2, color);
-		}
-		else
-		{
-			slope = X / Y;
-			c = .5;
-			while (y1 != y2)
-			{
-				buffer.setPixel32(x1, y1, color);
-				y1 += yy;
-				c += slope;
-				if (c >= 1)
-				{
-					x1 += xx;
-					c -= 1;
-				}
-			}
-			buffer.setPixel32(x2, y2, color);
-		}
-	}
-
-	public function drawMiniMap()
+	public inline function drawMiniMap()
 	{
 		var mx:Int = 6, my: Int = 6;
 		for (y in 0...level.height)
@@ -216,7 +115,7 @@ class Screen extends Sprite
 		return dx * dx + dy * dy;
 	}
 
-	public function doRayCast(angle:Float)
+	public inline function doRayCast(angle:Float)
 	{
 		var dist:Float = 0, textureX:Float = 0;
 		var wallX:Int, wallY:Int, color:Int = 0xFFFFFFFF;
@@ -315,7 +214,7 @@ class Screen extends Sprite
 		}
 	}
 
-	public function drawRays()
+	public inline function drawRays()
 	{
 		var numRays:Int = Math.floor(_bufferWidth / stripWidth);
 		var angle:Float = camera.angle - camera.fov / 2;
@@ -338,6 +237,8 @@ class Screen extends Sprite
 
 	public function draw()
 	{
+		// clear buffer
+		buffer.fillRect(buffer.rect, color);
 		drawRays();
 		drawMiniMap();
 	}
@@ -346,11 +247,9 @@ class Screen extends Sprite
 	private function getColor():Int { return _color; }
 	private function setColor(value:Int):Int { _color = 0xFF000000 | value; return _color; }
 
-	private var _buffers:Array<Bitmap>;
 	private var _bufferWidth:Int;
 	private var _bufferHeight:Int;
 	private var _current:Int;
 	private var _color:Int;
-	private var _bounds:Rectangle;
 
 }
