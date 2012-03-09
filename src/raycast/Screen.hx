@@ -33,9 +33,9 @@ class Screen extends Sprite
 		[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
 		[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 		[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 1, 1, 1, 2, 3, 1],
-		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+		[1, 0, 0, 0, 2, 1, 1, 2, 3, 1],
+		[1, 0, 0, 0, 3, 1, 0, 0, 0, 1],
+		[1, 0, 0, 0, 4, 1, 0, 0, 0, 1],
 		[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
 		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -225,20 +225,27 @@ class Screen extends Sprite
 
 		if (dist > 0)
 		{
+			var numTextures:Int = 4;
+			var tileHeight:Int = 64;
+
 			// fix fisheye
 			dist = Math.sqrt(dist) * Math.cos((camera.angle - angle) * RAD);
-			dist = viewDist / dist;
+			dist = Math.round(viewDist / dist);
 
 			clipRect.y = (_bufferHeight - dist) / 2;
 			clipRect.height = dist;
 
+			// hack way of patching up holes
 			var texX = textureX * dist;
+			if (texX > dist - stripWidth)
+				texX = dist - stripWidth;
 
 //			buffer.fillRect(clipRect, color); // colored wall
+			var sy = dist / wallImage.height * numTextures;
 
 			matrix.identity();
-			matrix.scale(dist / wallImage.width, dist / wallImage.height * 4);
-			matrix.translate(clipRect.x - texX, clipRect.y);
+			matrix.scale(dist / wallImage.width, sy);
+			matrix.translate(clipRect.x - texX, clipRect.y - sy * (wallType - 1) * tileHeight);
 			buffer.draw(wallImage, matrix, null, BlendMode.NORMAL, clipRect);
 		}
 	}
