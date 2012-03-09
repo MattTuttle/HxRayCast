@@ -24,11 +24,11 @@ class Screen extends Sprite
 	private static var mapData:Array<Array<Int>> = [
 		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-		[3, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-		[3, 0, 0, 0, 1, 1, 2, 2, 2, 1],
+		[2, 0, 0, 0, 1, 1, 4, 4, 4, 1],
 		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-		[3, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
 		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 	];
@@ -232,7 +232,11 @@ class Screen extends Sprite
 			matrix.identity();
 			matrix.scale(dist / wallImage.width, sy);
 			matrix.translate(clipRect.x - texX, clipRect.y - sy * (wallType - 1) * tileHeight);
+#if flash
 			_buffer.draw(wallImage, matrix, null, BlendMode.NORMAL, clipRect);
+#else
+			_buffer.draw(wallImage, matrix, null, "Normal", clipRect);
+#end
 		}
 	}
 
