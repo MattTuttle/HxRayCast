@@ -9,7 +9,9 @@ class RayCast extends Engine
 	public function new()
 	{
 		super();
-		screen = new Screen(640, 400, Assets.getBitmapData('assets/level.png'));
+		var bmp = Assets.getBitmapData('assets/level.png');
+
+		screen = new Screen(640, 400);
 		addChild(screen);
 	}
 

@@ -100,9 +100,13 @@ class Engine extends Sprite
 
 	private inline function checkMove(x:Float, y:Float)
 	{
-		if ( ! screen.isBlocking(screen.camera.x + x, screen.camera.y + y, 0.25, 0.25) )
+		if ( ! screen.isBlocking(screen.camera.x + x, screen.camera.y, 0.25, 0.25) )
 		{
 			screen.camera.x += x;
+		}
+
+		if ( ! screen.isBlocking(screen.camera.x, screen.camera.y + y, 0.25, 0.25) )
+		{
 			screen.camera.y += y;
 		}
 	}
@@ -112,15 +116,15 @@ class Engine extends Sprite
 		var x:Float, y:Float, angle:Float;
 
 		screen.camera.angle += turn;
-		angle = screen.camera.angle;
+		angle = screen.camera.angle * RAD;
 
-		x = Math.cos(angle * RAD) * forward;
-		y = Math.sin(angle * RAD) * forward;
+		x = Math.cos(angle) * forward;
+		y = Math.sin(angle) * forward;
 		checkMove(x, y);
 
-		angle += 90;
-		x = Math.cos(angle * RAD) * strafe;
-		y = Math.sin(angle * RAD) * strafe;
+		angle += 90 * RAD;
+		x = Math.cos(angle) * strafe;
+		y = Math.sin(angle) * strafe;
 		checkMove(x, y);
 	}
 

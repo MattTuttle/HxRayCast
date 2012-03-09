@@ -24,28 +24,41 @@ class Screen extends Sprite
 
 	public var stripWidth:Int;
 
-	public var level:BitmapData;
-
 	private var clipRect:Rectangle;
 	private var matrix:Matrix;
 	private var viewDist:Float;
 
-	public function new(width:Int, height:Int, bd:BitmapData)
+	private static var mapData:Array<Array<Int>> = [
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 1, 1, 1, 2, 3, 1],
+		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+		[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+	];
+
+	private static var mapWidth:Int = 10;
+	private static var mapHeight:Int = 10;
+
+	public function new(width:Int, height:Int)
 	{
 		super();
 
 		gridWidth = 32;
 		gridHeight = 32;
 
-		wallImage = new Bitmap(nme.Assets.getBitmapData("assets/brick.png"));
+		wallImage = new Bitmap(nme.Assets.getBitmapData("assets/walls.png"));
 
 		clipRect = new Rectangle();
 		matrix = new Matrix();
 
 		stripWidth = 2;
 
-		camera = new Camera(30, 30);
-		level = bd;
+		camera = new Camera(3, 3);
 
 		_current = 0;
 		_color = 0x202020;
@@ -59,7 +72,7 @@ class Screen extends Sprite
 
 	public function isBlocking(x:Float, y:Float, w:Float, h:Float)
 	{
-		if (y < 0 || y >= level.height || x < 0 || x >= level.width) {
+		if (y < 0 || y >= mapHeight || x < 0 || x >= mapWidth) {
 			return true;
 		}
 
@@ -68,25 +81,23 @@ class Screen extends Sprite
 		var l:Int = Math.floor(x - w);
 		var r:Int = Math.floor(x + w);
 		var u:Int = Math.floor(y - h);
-		var d:Int = Math.floor(y - h);
+		var d:Int = Math.floor(y + h);
 
 //		trace(l + ", " + r + ", " + u + ", " + d);
 
-		return (level.getPixel(l, u) == 0x000000 ||
-			level.getPixel(r, u) == 0x000000 ||
-			level.getPixel(l, d) == 0x000000 ||
-			level.getPixel(r, d) == 0x000000);
+		return (mapData[u][l] != 0 || mapData[u][r] != 0 ||
+			mapData[d][l] != 0 || mapData[d][r] != 0);
 	}
 
 	public inline function drawMiniMap()
 	{
 		var mx:Int = 6, my: Int = 6;
-		for (y in 0...level.height)
+		for (y in 0...mapHeight)
 		{
-			for (x in 0...level.width)
+			for (x in 0...mapWidth)
 			{
-				var wall:Int = level.getPixel(x, y);
-				if (wall != 0x000000)
+				var wall:Int = mapData[y][x];
+				if (wall != 0)
 				{
 					buffer.setPixel(x + mx, y + my, 0x555555);
 				}
@@ -100,7 +111,7 @@ class Screen extends Sprite
 		{
 			var x:Int = Std.int(camera.x + i * thetaX);
 			var y:Int = Std.int(camera.y + i * thetaY);
-			if (level.getPixel(x, y) == 0x000000)
+			if (mapData[y][x] != 0)
 				break;
 			buffer.setPixel(x + mx, y + my, 0xFF8888);
 		}
@@ -118,7 +129,8 @@ class Screen extends Sprite
 	public inline function doRayCast(angle:Float)
 	{
 		var dist:Float = 0, textureX:Float = 0;
-		var wallX:Int, wallY:Int, color:Int = 0xFFFFFFFF;
+		var wallX:Int, wallY:Int, wallType:Int = 0;
+		var color:Int = 0xFFFFFFFF;
 		var x:Float, y:Float, dx:Float, dy:Float, slope:Float;
 
 		var fCos:Float = Math.cos(angle * RAD);
@@ -137,21 +149,25 @@ class Screen extends Sprite
 		dx = left ? -1 : 1;
 		dy = dx * slope;
 
-		while (x >= 0 && x < level.width && y >= 0 && y < level.height)
+		while (x >= 0 && x < mapWidth && y >= 0 && y < mapHeight)
 		{
 			wallX = Math.floor(x + (left ? -1 : 0));
 			wallY = Math.floor(y);
-			var tile:Int = level.getPixel(wallX, wallY);
-			if (tile == 0x000000)
+			var tile:Int = mapData[wallY][wallX];
+			if (tile != 0)
 			{
 				textureX = y % 1;
-				if ( left ) {
-					textureX = 1 - textureX;
-				}
-				if (left)
+				if ( left )
+				{
+					textureX = 1 - textureX; // flip texture
 					color = 0xFFBBBBBB;
+				}
 				else
+				{
 					color = 0xFFCCCCCC;
+				}
+
+				wallType = tile;
 				dist = distance(x, y, camera.x, camera.y);
 //				trace("(" + x + ", " +  y + ") (" + camera.x + ", " + camera.y + "): " + dist);
 				break;
@@ -170,25 +186,28 @@ class Screen extends Sprite
 		dy = up ? -1 : 1;
 		dx = dy * slope;
 
-		while (x >= 0 && x < level.width && y >= 0 && y < level.height)
+		while (x >= 0 && x < mapWidth && y >= 0 && y < mapHeight)
 		{
 			wallX = Math.floor(x);
 			wallY = Math.floor(y + (up ? -1 : 0));
-			var tile:Int = level.getPixel(wallX, wallY);
-			if (tile == 0x000000)
+			var tile:Int = mapData[wallY][wallX];
+			if (tile != 0)
 			{
 				var newDist = distance(x, y, camera.x, camera.y);
 				if (dist == 0 || dist > newDist)
 				{
 					textureX = x % 1;
-					if (up) {
-						textureX = 1 - textureX;
-					}
-					if (up)
+					if ( up )
+					{
 						color = 0xFFAAAAAA;
+					}
 					else
+					{
 						color = 0xFFFFFFFF;
+						textureX = 1 - textureX; // flip texture
+					}
 					dist = newDist;
+					wallType = tile;
 				}
 				break;
 			}
@@ -198,40 +217,50 @@ class Screen extends Sprite
 
 		if (dist != 0)
 		{
+			// fix fisheye
 			dist = Math.sqrt(dist) * Math.cos((camera.angle - angle) * RAD);
+			dist = viewDist / dist;
 
-			var d:Float = viewDist / dist;
+			clipRect.y = (_bufferHeight - dist) / 2;
+			clipRect.height = dist;
 
-			clipRect.y = (_bufferHeight - d) / 2;
-			clipRect.height = d;
+			var texX = textureX * dist;
 
-			//buffer.fillRect(clipRect, color);
+//			buffer.fillRect(clipRect, color); // colored wall
 
 			matrix.identity();
-			matrix.scale(d / wallImage.width, d / wallImage.height);
-			matrix.translate(clipRect.x - textureX * d, clipRect.y);
+			matrix.scale(dist / wallImage.width, dist / wallImage.height * 4);
+			matrix.translate(clipRect.x - texX, clipRect.y);
 			buffer.draw(wallImage, matrix, null, BlendMode.NORMAL, clipRect);
 		}
 	}
 
 	public inline function drawRays()
 	{
-		var numRays:Int = Math.floor(_bufferWidth / stripWidth);
+		var numRays:Int = Math.ceil(_bufferWidth / stripWidth);
 		var angle:Float = camera.angle - camera.fov / 2;
 		var deltaAngle:Float = camera.fov / numRays;
 
+		// keep angle in 0-360 range
 		if (angle < 0)
+		{
 			angle += 360;
+		}
 
-		viewDist = (_bufferWidth / 2) / Math.tan(camera.fov * RAD / 2);
+		viewDist = (_bufferWidth / 2) / Math.tan((camera.fov * RAD) / 2);
 		clipRect.width = stripWidth;
 		for (i in 0...numRays)
 		{
 			clipRect.x = i * stripWidth;
+
 			doRayCast(angle);
+
+			// keep angle in 0-360 range
 			angle += deltaAngle;
 			if (angle > 360)
+			{
 				angle %= 360;
+			}
 		}
 	}
 
