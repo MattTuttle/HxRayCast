@@ -5,6 +5,7 @@ import flash.display.BitmapData;
 import flash.display.PixelSnapping;
 import flash.display.Sprite;
 import flash.display.BlendMode;
+import flash.geom.ColorTransform;
 import flash.geom.Matrix;
 import flash.geom.Rectangle;
 
@@ -12,42 +13,29 @@ class Screen extends Sprite
 {
 
 	// Used for rad-to-deg and deg-to-rad conversion.
-	public static inline var DEG:Float = 180 / Math.PI;
-	public static inline var RAD:Float = Math.PI / 180;
+	public static var DEG(get, never):Float;
+	public inline static function get_DEG():Float { return 180 / Math.PI; }
+	public static var RAD(get, never):Float;
+	public inline static function get_RAD():Float { return Math.PI / 180; }
 
 	public var wallImage:Bitmap;
 	public var camera:Camera;
+	public var world:World;
 	public var entities:Array<Entity>;
 
-	public var stripWidth:Int;
-
-	private static var mapData:Array<Array<Int>> = [
-		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-		[2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-		[2, 0, 0, 0, 1, 1, 4, 4, 4, 1],
-		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-		[2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-		[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
-		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-	];
-
-	private static var mapWidth:Int = mapData[0].length;
-	private static var mapHeight:Int = mapData.length;
+	public var stripWidth:Int = 3;
 
 	public function new(width:Int, height:Int)
 	{
 		super();
 
-		wallImage = new Bitmap(nme.Assets.getBitmapData("assets/walls.png"));
+		wallImage = new Bitmap(openfl.Assets.getBitmapData("assets/walls.png"));
 
 		clipRect = new Rectangle();
 		matrix = new Matrix();
 
-		stripWidth = 3;
-
 		camera = new Camera(3, 3); // set initial start position
+		world = new World();
 		entities = new Array<Entity>();
 
 		_bufferWidth = width;
@@ -56,30 +44,15 @@ class Screen extends Sprite
 		addChild(new Bitmap(_buffer, PixelSnapping.NEVER));
 	}
 
-	public function isBlocking(x:Float, y:Float, w:Float, h:Float)
-	{
-		if (y < 0 || y >= mapHeight || x < 0 || x >= mapWidth) {
-			return true;
-		}
-
-		var l:Int = Math.floor(x - w);
-		var r:Int = Math.floor(x + w);
-		var u:Int = Math.floor(y - h);
-		var d:Int = Math.floor(y + h);
-
-		return (mapData[u][l] != 0 || mapData[u][r] != 0 ||
-			mapData[d][l] != 0 || mapData[d][r] != 0);
-	}
-
 	public inline function drawMiniMap()
 	{
 		var mx:Int = 20, my: Int = 20;
 		var rect = new Rectangle(0, 0, 3, 3);
-		for (y in 0...mapHeight)
+		for (y in 0...world.mapHeight)
 		{
-			for (x in 0...mapWidth)
+			for (x in 0...world.mapWidth)
 			{
-				var wall:Int = mapData[y][x];
+				var wall:Int = world.mapData[y][x];
 				rect.x = x * rect.width + mx;
 				rect.y = y * rect.height + my;
 				if (wall != 0)
@@ -123,9 +96,9 @@ class Screen extends Sprite
 
 	public inline function doRayCast(angle:Float)
 	{
+		var colorTransform = new ColorTransform();
 		var dist:Float = 0, textureX:Float = 0;
 		var wallX:Int, wallY:Int, wallType:Int = 0;
-		var color:Int = 0xFFFFFFFF;
 		var x:Float, y:Float, dx:Float, dy:Float, slope:Float;
 
 		var fCos:Float = Math.cos(angle * RAD);
@@ -144,22 +117,22 @@ class Screen extends Sprite
 		dx = left ? -1 : 1;
 		dy = dx * slope;
 
-		while (x >= 0 && x < mapWidth && y >= 0 && y < mapHeight)
+		while (x >= 0 && x < world.mapWidth && y >= 0 && y < world.mapHeight)
 		{
 			wallX = Math.floor(x + (left ? -1 : 0));
 			wallY = Math.floor(y);
-			var tile:Int = mapData[wallY][wallX];
+			var tile:Int = world.mapData[wallY][wallX];
 			if (tile != 0)
 			{
 				textureX = y % 1;
 				if ( left )
 				{
 					textureX = 1 - textureX; // flip texture
-					color = 0xFFBBBBBB;
+					colorTransform.greenMultiplier = colorTransform.blueMultiplier = colorTransform.redMultiplier = 0.7;
 				}
 				else
 				{
-					color = 0xFFCCCCCC;
+					colorTransform.greenMultiplier = colorTransform.blueMultiplier = colorTransform.redMultiplier = 0.8;
 				}
 
 				wallType = tile;
@@ -180,11 +153,11 @@ class Screen extends Sprite
 		dy = up ? -1 : 1;
 		dx = dy * slope;
 
-		while (x >= 0 && x < mapWidth && y >= 0 && y < mapHeight)
+		while (x >= 0 && x < world.mapWidth && y >= 0 && y < world.mapHeight)
 		{
 			wallX = Math.floor(x);
 			wallY = Math.floor(y + (up ? -1 : 0));
-			var tile:Int = mapData[wallY][wallX];
+			var tile:Int = world.mapData[wallY][wallX];
 			if (tile != 0)
 			{
 				var newDist = distance(x, y, camera.x, camera.y);
@@ -193,11 +166,10 @@ class Screen extends Sprite
 					textureX = x % 1;
 					if ( up )
 					{
-						color = 0xFFAAAAAA;
+						colorTransform.greenMultiplier = colorTransform.blueMultiplier = colorTransform.redMultiplier = 0.6;
 					}
 					else
 					{
-						color = 0xFFFFFFFF;
 						textureX = 1 - textureX; // flip texture
 					}
 					dist = newDist;
@@ -226,17 +198,13 @@ class Screen extends Sprite
 			if (texX > dist - stripWidth)
 				texX = dist - stripWidth;
 
-//			buffer.fillRect(clipRect, color); // colored wall
 			var sy:Float = dist / wallImage.height * numTextures;
 
 			matrix.identity();
 			matrix.scale(dist / wallImage.width, sy);
 			matrix.translate(clipRect.x - texX, clipRect.y - sy * (wallType - 1) * tileHeight);
-#if flash
-			_buffer.draw(wallImage, matrix, null, BlendMode.NORMAL, clipRect);
-#else
-			_buffer.draw(wallImage, matrix, null, "Normal", clipRect);
-#end
+
+			_buffer.draw(wallImage, matrix, colorTransform, BlendMode.NORMAL, clipRect);
 		}
 	}
 
@@ -247,10 +215,7 @@ class Screen extends Sprite
 		var deltaAngle:Float = camera.fov / numRays;
 
 		// keep angle in 0-360 range
-		if (angle < 0)
-		{
-			angle += 360;
-		}
+		while (angle < 0) angle += 360;
 
 		viewDist = (_bufferWidth / 2) / Math.tan((camera.fov * RAD) / 2);
 		clipRect.width = stripWidth;
@@ -261,11 +226,7 @@ class Screen extends Sprite
 			doRayCast(angle);
 
 			// keep angle in 0-360 range
-			angle += deltaAngle;
-			if (angle >= 360)
-			{
-				angle %= 360;
-			}
+			angle = (angle + deltaAngle) % 360;
 		}
 	}
 

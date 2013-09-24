@@ -22,14 +22,11 @@ class Camera
 		this.fov = fov;
 	}
 
-	public var angle(getAngle, setAngle):Float;
-	private function getAngle():Float { return _angle; }
-	private function setAngle(value:Float):Float
+	public var angle(default, set):Float;
+	private function set_angle(value:Float):Float
 	{
-		_angle = value % 360;
-		return _angle;
+		angle = value % 360;
+		return angle;
 	}
-
-	private var _angle:Float;
 
 }
